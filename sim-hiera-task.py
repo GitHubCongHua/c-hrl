@@ -25,10 +25,9 @@ a1 = Agent(1, (6, 3))
 a2 = Agent(2, (7, 3))
 agent_list = [a1, a2]
 t1_end = (0, 0)
-t1_trash = 1
 t2_end = (7, 7)
-t2_trash = 1
 dump_end = (0, 7)
+trash = [1, 1]
 dump_trash = [0, 0]
 gamma = 0.8
 alpha = 0.7
@@ -112,14 +111,15 @@ def c_hrl(agent, task, state):
     if task.type == 'action':
         destination = task.parent.terminal
         next_state = vector_add(state, task.name)
+        print(next_state)
         if (next_state[0] not in range(8)) or (next_state[1] not in range(8)) \
                 or (Grid[next_state[0]][next_state[1]] != 0):
             next_state = state
         if destination == next_state:
             reward = 100
-            task.parent.flag = 1
         else:
             reward = -1
+
         old_reward = task.parent.dict.get((state, task), None)
         if old_reward is None:
             task.parent.dict[(state, task)] = reward
@@ -131,7 +131,67 @@ def c_hrl(agent, task, state):
             if agents != agent:
                 if len(agents.u_action) != 0:
                     seq.append(agents.u_action[0])
-        print(seq)
+
+    elif task.name == 'pick':
+        if task.parent.name == "collect trash at t1":
+            if state == t1_end and trash[0] == 1:
+                reward = 200
+                trash[0] = 0
+                print('pick the trash in t1')
+            else:
+                reward = -10
+        elif task.parent.name == "collect trash at t2":
+            if state == t2_end and trash[1] == 1:
+                reward = 200
+                trash[1] = 0
+                print('pick the trash in t2')
+            else:
+                reward = -10
+        else:
+            print('在pick这步出错了额')
+
+        old_reward = task.parent.dict.get((state, task), None)
+        if old_reward is None:
+            task.parent.dict[(state, task)] = reward
+        else:
+            task.parent.dict[(state, task)] = round((1-alpha)*old_reward + alpha*reward, 5)
+
+        seq = [state]
+        for agents in agent_list:
+            if agents != agent:
+                if len(agents.u_action) != 0:
+                    seq.append(agents.u_action[0])
+
+    elif task.name == 'put':
+        if task.parent.name == "collect trash at t1":
+            if state == dump_end and dump_trash[0] == 0 and trash[0] == 0:
+                reward = 200
+                dump_trash[0] = 1
+                print('put the trash in t1 into dump')
+            else:
+                reward = -10
+        elif task.parent.name == "collect trash at t2":
+            if state == dump_end and dump_trash[1] == 0 and trash[1] == 0:
+                reward = 200
+                dump_trash[1] = 1
+                print('put the trash in t2 into dump')
+            else:
+                reward = -10
+        else:
+            print('在put这步出错了额')
+
+        old_reward = task.parent.dict.get((state, task), None)
+        if old_reward is None:
+            task.parent.dict[(state, task)] = reward
+        else:
+            task.parent.dict[(state, task)] = round((1-alpha)*old_reward + alpha*reward, 5)
+
+        seq = [state]
+        for agents in agent_list:
+            if agents != agent:
+                if len(agents.u_action) != 0:
+                    seq.append(agents.u_action[0])
+
     else:
         while not terminal(task, state):
             if task.type == 'c-sub-task':
@@ -149,9 +209,6 @@ def c_hrl(agent, task, state):
                         task.dict[tuple(joint_s_a)] = round((gamma**n)*max_q_joint, 5)
                     else:
                         task.dict[tuple(joint_s_a)] = round((1-alpha)*old_reward + alpha*(gamma**n)*max_q_joint, 5)
-
-                if(children.flag == 1 for children in task.get_children()):
-                    task.flag = 1
 
             else:
                 sub_task = random.choice(task.get_children())
@@ -173,6 +230,7 @@ def c_hrl(agent, task, state):
 
     print("agent:", agent.id)
     return seq, next_state
+
 
 # print(c_hrl(a1, M0, (6, 3)))
 # print(c_hrl(a2, M0, (7, 3)))
