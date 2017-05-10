@@ -92,6 +92,7 @@ def terminal(task, state):
 
 
 def vector_add(a, b):
+
     return a[0] + b[0], a[1] + b[1]
 
 
@@ -103,7 +104,16 @@ def get_max_q_joint(state):
     return 100
 
 
+def get_status(a1, a2):
+    print(a1.state, a2.state)
+
+
+def get_thread_name():
+    print(threading.current_thread().getName())
+
+
 def c_hrl(agent, task, state):
+    global a1, a2
     # seq is a sequence store states visited and actions of other agents
     seq = []
     next_state = None
@@ -111,10 +121,11 @@ def c_hrl(agent, task, state):
     if task.type == 'action':
         destination = task.parent.terminal
         next_state = vector_add(state, task.name)
-        print(next_state)
         if (next_state[0] not in range(8)) or (next_state[1] not in range(8)) \
                 or (Grid[next_state[0]][next_state[1]] != 0):
             next_state = state
+        else:
+            next_state = vector_add(state, task.name)
         if destination == next_state:
             reward = 100
         else:
@@ -131,6 +142,8 @@ def c_hrl(agent, task, state):
             if agents != agent:
                 if len(agents.u_action) != 0:
                     seq.append(agents.u_action[0])
+
+        # print("seq is ", seq)
 
     elif task.name == 'pick':
         if task.parent.name == "collect trash at t1":
@@ -162,6 +175,9 @@ def c_hrl(agent, task, state):
                 if len(agents.u_action) != 0:
                     seq.append(agents.u_action[0])
 
+        next_state = state
+
+
     elif task.name == 'put':
         if task.parent.name == "collect trash at t1":
             if state == dump_end and dump_trash[0] == 0 and trash[0] == 0:
@@ -192,19 +208,32 @@ def c_hrl(agent, task, state):
                 if len(agents.u_action) != 0:
                     seq.append(agents.u_action[0])
 
+        next_state = state
+
     else:
         while not terminal(task, state):
             if task.type == 'c-sub-task':
                 sub_task = random.choice(task.get_children())
+                if len(agent.u_action) == 0:
+                    agent.u_action.append(sub_task.name)
+                else:
+                    agent.u_action[0] = sub_task.name
                 child_seq, next_state = c_hrl(agent, sub_task, state)
+                if next_state is None:
+                    next_state = state
                 max_q_joint = get_max_q_joint(next_state)
                 n = 0
-                for child_seqs in child_seq:
-                    child_seqs.append(sub_task)
-                    joint_s_a = child_seqs
+                for each_child_seq in child_seq:
+                    each_child_seq.append(sub_task)
+                    joint_s_a = each_child_seq
                     n += 1
-                    print(tuple(joint_s_a))
-                    old_reward = task.dict.get(tuple(joint_s_a), None)
+                    try:
+                        old_reward = task.dict.get(tuple(joint_s_a), None)
+                    except TypeError:
+                        print("s is :", joint_s_a)
+                        print("ssssbbbbbbbbbbbbbb", each_child_seq)
+                        print("hhhhhhhhh", child_seq)
+                        exit()
                     if old_reward is None:
                         task.dict[tuple(joint_s_a)] = round((gamma**n)*max_q_joint, 5)
                     else:
@@ -214,9 +243,15 @@ def c_hrl(agent, task, state):
                 sub_task = random.choice(task.get_children())
                 sub_task.parent = task
                 child_seq, next_state = c_hrl(agent, sub_task, state)
+                if next_state is None:
+                    next_state = state
+
                 max_q = get_max_q(next_state)
                 n = 0
+                # print(len(child_seq))
                 for child_seqs in child_seq:
+                    # print(child_seq)
+                    # print("seq is ", child_seqs)
                     s = child_seqs[0]
                     n += 1
                     old_reward = task.dict.get((s, sub_task), None)
@@ -224,19 +259,21 @@ def c_hrl(agent, task, state):
                         task.dict[(s, sub_task)] = round((gamma**n)*max_q, 5)
                     else:
                         task.dict[(s, sub_task)] = round((1-alpha)*old_reward + alpha*(gamma**n)*max_q, 5)
-
+            # print("child seq" , child_seq)
             seq.append(child_seq)
+            # print("seq",  seq)
             state = next_state
 
-    print("agent:", agent.id)
+    # print("agent:", agent.id)
+    # print(seq, next_state)
     return seq, next_state
 
 
 # print(c_hrl(a1, M0, (6, 3)))
 # print(c_hrl(a2, M0, (7, 3)))
 try:
-    t1 = threading.Thread(target=c_hrl, args=(a1, M0, (6, 3)))
-    t2 = threading.Thread(target=c_hrl, args=(a2, M0, (7, 3)))
+    t1 = threading.Thread(target=c_hrl, args=(a1, M0, (6, 3)), name="agent-1")
+    t2 = threading.Thread(target=c_hrl, args=(a2, M0, (7, 3)), name="agent-2")
     t1.start()
     t2.start()
     t1.join()
@@ -246,3 +283,4 @@ except ():
 
 print(M1.dict)
 print(M2.dict)
+print(dump_trash)
