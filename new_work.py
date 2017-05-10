@@ -21,14 +21,12 @@ Grid = [[0, 0, 0, 0, 0, 0, 0, 0],
         [-1, -1, 0, 0, 0, -1, 0, 0],
         [-1, -1, 0, 0, 0, -1, 0, 0]
         ]
-a1 = Agent(1, (6, 3))
-a2 = Agent(2, (7, 3))
+a1 = Agent(1, (6, 3), 0)
+a2 = Agent(2, (7, 3), 0)
 agent_list = [a1, a2]
 t1_end = (0, 0)
 t2_end = (7, 7)
 dump_end = (0, 7)
-trash = [1, 1]
-dump_trash = [0, 0]
 gamma = 0.8
 alpha = 0.7
 epsilon = 0.9
@@ -92,7 +90,6 @@ def terminal(task, state):
 
 
 def vector_add(a, b):
-
     return a[0] + b[0], a[1] + b[1]
 
 
@@ -104,12 +101,8 @@ def get_max_q_joint(state):
     return 100
 
 
-def get_status(a1, a2):
-    print(a1.state, a2.state)
-
-
 def get_thread_name():
-    return (threading.current_thread().getName(),)
+    return threading.current_thread().getName()
 
 
 def do_action(agent, task, state, seq):
@@ -141,17 +134,21 @@ def do_action(agent, task, state, seq):
 
 def do_pick(agent, task, state, seq):
     if task.parent.name == "collect trash at t1":
-        if state == t1_end and trash[0] == 1:
-            reward = 200
+        if state == t1_end and trash[0] == 1 and agent.trash == 0:
+            # 垃圾桶1里面的垃圾清空,agent拿起垃圾桶1里面的垃圾
             trash[0] = 0
-            print('pick the trash in t1')
+            agent.trash = 1
+            print('agent', agent.id, 'pick the trash in t1')
+            reward = 200
         else:
             reward = -10
     elif task.parent.name == "collect trash at t2":
         if state == t2_end and trash[1] == 1:
-            reward = 200
+            # 垃圾桶2里面的垃圾清空,agent拿起垃圾桶2里面的垃圾
             trash[1] = 0
-            print('pick the trash in t2')
+            agent.trash = 2
+            print('agent', agent.id, 'pick the trash in t2')
+            reward = 200
         else:
             reward = -10
     else:
@@ -168,7 +165,6 @@ def do_pick(agent, task, state, seq):
         if agents != agent:
             if len(agents.u_action) != 0:
                 seq.append(agents.u_action[0])
-                # print('test2', seq)
     next_state = state
 
     return seq, next_state
@@ -176,17 +172,19 @@ def do_pick(agent, task, state, seq):
 
 def do_put(agent, task, state, seq):
     if task.parent.name == "collect trash at t1":
-        if state == dump_end and dump_trash[0] == 0 and trash[0] == 0:
+        if state == dump_end and agent.trash == 1:
             reward = 200
             dump_trash[0] = 1
-            print('put the trash in t1 into dump')
+            agent.trash = 0
+            print('agent', agent.id, 'put the trash in t1 into dump')
         else:
             reward = -10
     elif task.parent.name == "collect trash at t2":
-        if state == dump_end and dump_trash[1] == 0 and trash[1] == 0:
+        if state == dump_end and agent.trash == 2:
             reward = 200
             dump_trash[1] = 1
-            print('put the trash in t2 into dump')
+            agent.trash = 0
+            print('agent', agent.id, 'put the trash in t2 into dump')
         else:
             reward = -10
     else:
@@ -203,19 +201,18 @@ def do_put(agent, task, state, seq):
         if agents != agent:
             if len(agents.u_action) != 0:
                 seq.append(agents.u_action[0])
-                # print('test3', seq)
     next_state = state
 
     return seq, next_state
 
 
-def get_depth(a_List):
-    if type(a_List) != list:
+def get_depth(a_list):
+    if type(a_list) != list:
         return 0
     try:
-        if type(a_List[0]) != list:
+        if type(a_list[0]) != list:
             return 1
-        elif type(a_List[0][0]) != list:
+        elif type(a_list[0][0]) != list:
             return 2
         else:
             return 3
@@ -223,11 +220,11 @@ def get_depth(a_List):
         return 1
 
 
-
 def do_extra(agent, task, state, seq):
     next_state = None
     while not terminal(task, state):
-         # print(terminal(task, state), state, task.name)
+        # print(terminal(task, state), state, task.name, 'agent', agent.id)
+
         if task.type == 'c-sub-task':
             sub_task = random.choice(task.get_children())
             if len(agent.u_action) == 0:
@@ -248,10 +245,7 @@ def do_extra(agent, task, state, seq):
                     old_reward = task.dict.get(tuple(joint_s_a), None)
                 except TypeError:
                     pass
-                    # print("s is :", joint_s_a)
-                    # print("ssssbbbbbbbbbbbbbb", each_child_seq)
-                    # print("hhhhhhhhh", child_seq)
-                    # exit()
+                    exit()
                 if old_reward is None:
                     task.dict[tuple(joint_s_a)] = round((gamma ** n) * max_q_joint, 5)
                 else:
@@ -266,11 +260,7 @@ def do_extra(agent, task, state, seq):
                 next_state = state
             max_q = get_max_q(next_state)
             n = 0
-            # print(child_seq, "test")
-            # print(len(child_seq))
             for child_seqs in child_seq:
-                # print(child_seq)
-                # print("seq is ", child_seqs)
                 s = child_seqs[0]
                 n += 1
                 old_reward = task.dict.get((s, sub_task), None)
@@ -288,33 +278,59 @@ def do_extra(agent, task, state, seq):
         state = next_state
     return seq, next_state
 
-    # print(terminal(task, state), state, task.name)
-
 
 def c_hrl(agent, task, state):
     seq = []
+    global step
     if task.type == 'action':
+        step += 1
         return do_action(agent, task, state, seq)
     elif task.name == 'pick':
+        step += 1
         return do_pick(agent, task, state, seq)
     elif task.name == 'put':
+        step += 1
         return do_put(agent, task, state, seq)
     else:
         return do_extra(agent, task, state, seq)
 
-# print(c_hrl(a1, M0, (6, 3)))
-# print(c_hrl(a2, M0, (7, 3)))
+
+count = 0
+while count < 10:
+    trash = [1, 1]
+    dump_trash = [0, 0]
+    step = 0
+    try:
+        t1 = threading.Thread(target=c_hrl, args=(a1, M0, (6, 3)), name="agent-1")
+        t2 = threading.Thread(target=c_hrl, args=(a2, M0, (7, 3)), name="agent-2")
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+    except ():
+        print("Error: unable to start thread")
+
+    print('end')
+    print(M0.dict)
+    print(M1.dict)
+    print(M2.dict)
+    print(dump_trash)
+
+    count += 1
+    print('第', count, '次探索')
+    print('所用步数：', step)
+
+# 【！未完成】将探索概率降为0，验证探索多次之后的学习效果
 try:
-    t1 = threading.Thread(target=c_hrl, args=(a1, M0, (6, 3)), name="agent-1")
-    t2 = threading.Thread(target=c_hrl, args=(a2, M0, (7, 3)), name="agent-2")
+    trash = [1, 1]
+    dump_trash = [0, 0]
+    t1 = threading.Thread(target=c_hrl, args=(a1, M0, (6, 3)))
+    t2 = threading.Thread(target=c_hrl, args=(a1, M0, (6, 3)))
     t1.start()
     t2.start()
     t1.join()
     t2.join()
+    print('完成垃圾回收', dump_trash)
 except ():
     print("Error: unable to start thread")
 
-print('end')
-print(M1.dict)
-print(M2.dict)
-print(dump_trash)
