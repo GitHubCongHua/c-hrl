@@ -109,10 +109,10 @@ def get_status(a1, a2):
 
 
 def get_thread_name():
-    print(threading.current_thread().getName())
+    return (threading.current_thread().getName(),)
 
 
-def do_action(agent, task, state):
+def do_action(agent, task, state, seq):
     destination = task.parent.terminal
     next_state = vector_add(state, task.name)
     if (next_state[0] not in range(8)) or (next_state[1] not in range(8)) \
@@ -131,7 +131,7 @@ def do_action(agent, task, state):
     else:
         task.parent.dict[(state, task)] = round((1 - alpha) * old_reward + alpha * reward, 5)
 
-    seq = [state]
+    seq.append(state)
     for agents in agent_list:
         if agents != agent:
             if len(agents.u_action) != 0:
@@ -139,7 +139,7 @@ def do_action(agent, task, state):
     return seq, next_state
 
 
-def do_pick(agent, task, state):
+def do_pick(agent, task, state, seq):
     if task.parent.name == "collect trash at t1":
         if state == t1_end and trash[0] == 1:
             reward = 200
@@ -163,7 +163,7 @@ def do_pick(agent, task, state):
     else:
         task.parent.dict[(state, task)] = round((1 - alpha) * old_reward + alpha * reward, 5)
 
-    seq = [state]
+    seq.append(state)
     for agents in agent_list:
         if agents != agent:
             if len(agents.u_action) != 0:
@@ -174,7 +174,7 @@ def do_pick(agent, task, state):
     return seq, next_state
 
 
-def do_put(agent, task, state):
+def do_put(agent, task, state, seq):
     if task.parent.name == "collect trash at t1":
         if state == dump_end and dump_trash[0] == 0 and trash[0] == 0:
             reward = 200
@@ -198,7 +198,7 @@ def do_put(agent, task, state):
     else:
         task.parent.dict[(state, task)] = round((1 - alpha) * old_reward + alpha * reward, 5)
 
-    seq = [state]
+    seq.append(state)
     for agents in agent_list:
         if agents != agent:
             if len(agents.u_action) != 0:
@@ -209,9 +209,25 @@ def do_put(agent, task, state):
     return seq, next_state
 
 
-def do_extra(agent, task, state):
-    seq = []
+def get_depth(a_List):
+    if type(a_List) != list:
+        return 0
+    try:
+        if type(a_List[0]) != list:
+            return 1
+        elif type(a_List[0][0]) != list:
+            return 2
+        else:
+            return 3
+    except:
+        return 1
+
+
+
+def do_extra(agent, task, state, seq):
+    next_state = None
     while not terminal(task, state):
+         # print(terminal(task, state), state, task.name)
         if task.type == 'c-sub-task':
             sub_task = random.choice(task.get_children())
             if len(agent.u_action) == 0:
@@ -225,16 +241,17 @@ def do_extra(agent, task, state):
             max_q_joint = get_max_q_joint(next_state)
             n = 0
             for each_child_seq in child_seq:
-                each_child_seq.append(sub_task)
+                each_child_seq.append(sub_task.name)
                 joint_s_a = each_child_seq
                 n += 1
                 try:
                     old_reward = task.dict.get(tuple(joint_s_a), None)
                 except TypeError:
+                    pass
                     # print("s is :", joint_s_a)
                     # print("ssssbbbbbbbbbbbbbb", each_child_seq)
                     # print("hhhhhhhhh", child_seq)
-                    exit()
+                    # exit()
                 if old_reward is None:
                     task.dict[tuple(joint_s_a)] = round((gamma ** n) * max_q_joint, 5)
                 else:
@@ -243,14 +260,13 @@ def do_extra(agent, task, state):
 
         else:
             sub_task = random.choice(task.get_children())
-            print(sub_task.name, sub_task.type)
             sub_task.parent = task
             child_seq, next_state = c_hrl(agent, sub_task, state)
             if next_state is None:
                 next_state = state
-            print('child', child_seq)
             max_q = get_max_q(next_state)
             n = 0
+            # print(child_seq, "test")
             # print(len(child_seq))
             for child_seqs in child_seq:
                 # print(child_seq)
@@ -262,22 +278,29 @@ def do_extra(agent, task, state):
                     task.dict[(s, sub_task)] = round((gamma ** n) * max_q, 5)
                 else:
                     task.dict[(s, sub_task)] = round((1 - alpha) * old_reward + alpha * (gamma ** n) * max_q, 5)
-        print("child seq", child_seq)
-        seq.append(child_seq)
+
+        if get_depth(child_seq) == 1:
+            seq.append(child_seq)
+        elif get_depth(child_seq) == 2:
+            seq = child_seq
+        # print('child', seq, get_thread_name())
         # print("seq",  seq)
         state = next_state
-        return seq, next_state
+    return seq, next_state
+
+    # print(terminal(task, state), state, task.name)
 
 
 def c_hrl(agent, task, state):
+    seq = []
     if task.type == 'action':
-        return do_action(agent, task, state)
+        return do_action(agent, task, state, seq)
     elif task.name == 'pick':
-        return do_pick(agent, task, state)
+        return do_pick(agent, task, state, seq)
     elif task.name == 'put':
-        return do_put(agent, task, state)
+        return do_put(agent, task, state, seq)
     else:
-        return do_extra(agent, task, state)
+        return do_extra(agent, task, state, seq)
 
 # print(c_hrl(a1, M0, (6, 3)))
 # print(c_hrl(a2, M0, (7, 3)))
@@ -291,6 +314,7 @@ try:
 except ():
     print("Error: unable to start thread")
 
-# print(M1.dict)
-# print(M2.dict)
-# print(dump_trash)
+print('end')
+print(M1.dict)
+print(M2.dict)
+print(dump_trash)

@@ -1,2 +1,2 @@
 
-tuple([123,456])
+print(type([123]) != list)
