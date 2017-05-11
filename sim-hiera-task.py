@@ -21,8 +21,8 @@ Grid = [[0, 0, 0, 0, 0, 0, 0, 0],
         [-1, -1, 0, 0, 0, -1, 0, 0],
         [-1, -1, 0, 0, 0, -1, 0, 0]
         ]
-a1 = Agent(1, (6, 3))
-a2 = Agent(2, (7, 3))
+a1 = Agent(1, (6, 3), 0)
+a2 = Agent(2, (7, 3), 0)
 agent_list = [a1, a2]
 t1_end = (0, 0)
 t2_end = (7, 7)
@@ -176,7 +176,6 @@ def c_hrl(agent, task, state):
                     seq.append(agents.u_action[0])
 
         next_state = state
-
 
     elif task.name == 'put':
         if task.parent.name == "collect trash at t1":
