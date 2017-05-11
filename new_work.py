@@ -143,7 +143,7 @@ def do_pick(agent, task, state, seq):
         else:
             reward = -10
     elif task.parent.name == "collect trash at t2":
-        if state == t2_end and trash[1] == 1:
+        if state == t2_end and trash[1] == 1 and agent.trash == 0:
             # 垃圾桶2里面的垃圾清空,agent拿起垃圾桶2里面的垃圾
             trash[1] = 0
             agent.trash = 2
@@ -296,7 +296,7 @@ def c_hrl(agent, task, state):
 
 
 count = 0
-while count < 10:
+while count < 1:
     trash = [1, 1]
     dump_trash = [0, 0]
     step = 0
@@ -310,12 +310,6 @@ while count < 10:
     except ():
         print("Error: unable to start thread")
 
-    print('end')
-    print(M0.dict)
-    print(M1.dict)
-    print(M2.dict)
-    print(dump_trash)
-
     count += 1
     print('第', count, '次探索')
     print('所用步数：', step)
@@ -324,6 +318,7 @@ while count < 10:
 try:
     trash = [1, 1]
     dump_trash = [0, 0]
+    step = 0
     t1 = threading.Thread(target=c_hrl, args=(a1, M0, (6, 3)))
     t2 = threading.Thread(target=c_hrl, args=(a1, M0, (6, 3)))
     t1.start()
@@ -331,6 +326,7 @@ try:
     t1.join()
     t2.join()
     print('完成垃圾回收', dump_trash)
+    print('所用步数：', step)
 except ():
     print("Error: unable to start thread")
 
