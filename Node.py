@@ -6,7 +6,7 @@ class Node:
         self.name = name
         self.flag = flag
         self.terminal = terminal
-        self.dict = {}                # 通过学习不断更新的值
+        self.dict = {}
         self.parent = Node
 
     def get_children(self):

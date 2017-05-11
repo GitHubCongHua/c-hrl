@@ -105,6 +105,19 @@ def get_thread_name():
     return threading.current_thread().getName()
 
 
+def prim_action_after(task, agent, state, reward, seq):
+    old_reward = task.dict.get((agent.id, state, task), None)
+    if old_reward is None:
+        task.dict[(agent.id, state, task)] = reward
+    else:
+        task.dict[(agent.id, state, task)] = round((1 - alpha) * old_reward + alpha * reward, 5)
+    seq.append(state)
+    for agents in agent_list:
+        if agents != agent:
+            if len(agents.u_action) != 0:
+                seq.append(agents.u_action[0])
+
+
 def do_action(agent, task, state, seq):
     destination = task.parent.terminal
     next_state = vector_add(state, task.name)
@@ -118,17 +131,9 @@ def do_action(agent, task, state, seq):
     else:
         reward = -1
 
-    old_reward = task.parent.dict.get((state, task), None)
-    if old_reward is None:
-        task.parent.dict[(state, task)] = reward
-    else:
-        task.parent.dict[(state, task)] = round((1 - alpha) * old_reward + alpha * reward, 5)
+    # 执行函数
+    prim_action_after(task, agent, state, reward, seq)
 
-    seq.append(state)
-    for agents in agent_list:
-        if agents != agent:
-            if len(agents.u_action) != 0:
-                seq.append(agents.u_action[0])
     return seq, next_state
 
 
@@ -154,18 +159,9 @@ def do_pick(agent, task, state, seq):
     else:
         print('在pick这步出错了额')
 
-    old_reward = task.parent.dict.get((state, task), None)
-    if old_reward is None:
-        task.parent.dict[(state, task)] = reward
-    else:
-        task.parent.dict[(state, task)] = round((1 - alpha) * old_reward + alpha * reward, 5)
-
-    seq.append(state)
-    for agents in agent_list:
-        if agents != agent:
-            if len(agents.u_action) != 0:
-                seq.append(agents.u_action[0])
     next_state = state
+
+    prim_action_after(task, agent, state, reward, seq)
 
     return seq, next_state
 
@@ -189,19 +185,9 @@ def do_put(agent, task, state, seq):
             reward = -10
     else:
         print('在put这步出错了额')
-
-    old_reward = task.parent.dict.get((state, task), None)
-    if old_reward is None:
-        task.parent.dict[(state, task)] = reward
-    else:
-        task.parent.dict[(state, task)] = round((1 - alpha) * old_reward + alpha * reward, 5)
-
-    seq.append(state)
-    for agents in agent_list:
-        if agents != agent:
-            if len(agents.u_action) != 0:
-                seq.append(agents.u_action[0])
     next_state = state
+
+    prim_action_after(task, agent, state, reward, seq)
 
     return seq, next_state
 
@@ -220,6 +206,7 @@ def get_depth(a_list):
         return 1
 
 
+
 def do_extra(agent, task, state, seq):
     next_state = None
     while not terminal(task, state):
@@ -232,6 +219,7 @@ def do_extra(agent, task, state, seq):
             else:
                 agent.u_action[0] = sub_task.name
             child_seq, next_state = c_hrl(agent, sub_task, state)
+            print(child_seq)
             # print(sub_task.name, child_seq, next_state)
             if next_state is None:
                 next_state = state
@@ -240,6 +228,7 @@ def do_extra(agent, task, state, seq):
             for each_child_seq in child_seq:
                 each_child_seq.append(sub_task.name)
                 joint_s_a = each_child_seq
+                joint_s_a.insert(0, agent.id)
                 n += 1
                 try:
                     old_reward = task.dict.get(tuple(joint_s_a), None)
@@ -261,13 +250,16 @@ def do_extra(agent, task, state, seq):
             max_q = get_max_q(next_state)
             n = 0
             for child_seqs in child_seq:
-                s = child_seqs[0]
-                n += 1
-                old_reward = task.dict.get((s, sub_task), None)
-                if old_reward is None:
-                    task.dict[(s, sub_task)] = round((gamma ** n) * max_q, 5)
+                if type(child_seqs) == list:
+                    s = child_seqs[0]
                 else:
-                    task.dict[(s, sub_task)] = round((1 - alpha) * old_reward + alpha * (gamma ** n) * max_q, 5)
+                    s = child_seqs
+                n += 1
+                old_reward = task.dict.get((agent.id, s, sub_task), None)
+                if old_reward is None:
+                    task.dict[(agent.id, s, sub_task)] = round((gamma ** n) * max_q, 5)
+                else:
+                    task.dict[(agent.id, s, sub_task)] = round((1 - alpha) * old_reward + alpha * (gamma ** n) * max_q, 5)
 
         if get_depth(child_seq) == 1:
             seq.append(child_seq)
@@ -296,7 +288,7 @@ def c_hrl(agent, task, state):
 
 
 count = 0
-while count < 1:
+while count < 0:
     trash = [1, 1]
     dump_trash = [0, 0]
     step = 0
@@ -310,17 +302,74 @@ while count < 1:
     except ():
         print("Error: unable to start thread")
 
+    # print(M0.dict)
+    # print(M1.dict)
+    # print(M2.dict)
+    # print(M3.dict)
+    # print(M4.dict)
+    # print(M5.dict)
+    # print(P1.dict)
+    # print(P2.dict)
+    # print(C1.dict)
+    # print(C2.dict)
+    # print(C3.dict)
+    # print(C4.dict)
     count += 1
     print('第', count, '次探索')
     print('所用步数：', step)
+
+
+def c_work(agent, task):
+    if task.name == (0, -1) or task.name == (0, 1) or task.name == (1, 0) or task.name == (-1, 0):
+        next_state = vector_add(agent.state, task.name)
+        if (next_state[0] not in range(8)) or (next_state[1] not in range(8)) \
+                or (Grid[next_state[0]][next_state[1]] != 0):
+            next_state = agent.state
+        else:
+            next_state = vector_add(agent.state, task.name)
+        agent.state = next_state
+    elif task.name == 'pick':
+        if task.parent.name == "collect trash at t1":
+            if agent.state == t1_end and trash[0] == 1 and agent.trash == 0:
+                # 垃圾桶1里面的垃圾清空,agent拿起垃圾桶1里面的垃圾
+                trash[0] = 0
+                agent.trash = 1
+                print('agent', agent.id, 'pick the trash in t1')
+        else:
+            if agent.state == t2_end and trash[1] == 1 and agent.trash == 0:
+                # 垃圾桶2里面的垃圾清空,agent拿起垃圾桶2里面的垃圾
+                trash[1] = 0
+                agent.trash = 2
+                print('agent', agent.id, 'pick the trash in t2')
+    elif task.name == 'put':
+        if task.parent.name == "collect trash at t1":
+            if agent.state == dump_end and agent.trash == 1:
+                dump_trash[0] = 1
+                agent.trash = 0
+                print('agent', agent.id, 'put the trash in t1 into dump')
+        else:
+            if agent.state == dump_end and agent.trash == 2:
+                dump_trash[1] = 1
+                agent.trash = 0
+                print('agent', agent.id, 'put the trash in t2 into dump')
+    else:
+        state = agent.state
+        print(agent.state)
+        while not terminal(task, state):
+            sub_task = random.choice(task.get_children())
+            print(sub_task.name, agent.state)
+            sub_task.parent = task
+
+            c_work(agent, sub_task)
+
 
 # 【！未完成】将探索概率降为0，验证探索多次之后的学习效果
 try:
     trash = [1, 1]
     dump_trash = [0, 0]
     step = 0
-    t1 = threading.Thread(target=c_hrl, args=(a1, M0, (6, 3)))
-    t2 = threading.Thread(target=c_hrl, args=(a1, M0, (6, 3)))
+    t1 = threading.Thread(target=c_work, args=(a1, M0))
+    t2 = threading.Thread(target=c_work, args=(a2, M0))
     t1.start()
     t2.start()
     t1.join()
@@ -329,4 +378,3 @@ try:
     print('所用步数：', step)
 except ():
     print("Error: unable to start thread")
-
