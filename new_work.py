@@ -95,12 +95,26 @@ def vector_add(a, b):
     return a[0] + b[0], a[1] + b[1]
 
 
-def get_max_q(state):
-    return 100
+def get_max_q(agent_id, task, state):
+    sub_tasks = task.get_children()
+    max_q = max([(task.dict.get((agent_id, state, sub_task), 0)
+                  + sub_task.dict.get((agent_id, state, sub_task), 0)) for sub_task in sub_tasks])
+    return max_q
 
 
-def get_max_q_joint(state):
-    return 100
+def get_max_q_joint(agent_id, task, state, other_action_list):
+    sub_tasks = task.get_children()
+    if len(other_action_list) == 0:
+        max_q_joint = max([(task.dict.get((agent_id, state, sub_task), 0)
+                            + sub_task.dict.get((agent_id, state, sub_task), 0)) for sub_task in sub_tasks])
+    else:
+        # 由于这里只有一个值，所以不用列表再拼接了
+        # 如果换成多于两个agent，这里就必须要改
+        other_action = other_action_list[0]
+        max_q_joint = max([(task.dict.get((agent_id, state, other_action, sub_task), 0)
+                            + sub_task.dict.get((agent_id, state, other_action, sub_task), 0)) for sub_task in sub_tasks])
+    return max_q_joint
+
 
 
 def get_thread_name():
@@ -216,14 +230,21 @@ def do_extra(agent, task, state, seq):
         if task.type == 'c-sub-task':
             sub_task = random.choice(task.get_children())
             if len(agent.u_action) == 0:
-                agent.u_action.append(sub_task.name)
+                agent.u_action.append(sub_task)
             else:
-                agent.u_action[0] = sub_task.name
+                agent.u_action[0] = sub_task
             child_seq, next_state = c_hrl(agent, sub_task, state)
-            max_q_joint = get_max_q_joint(next_state)
+            # 获得其他agent在合作层采取的行为
+            # 由于这里其他agent只有一个，直接
+            temp_list = []
+            for agents in agent_list:
+                if agents != agent:
+                    if len(agents.u_action) != 0:
+                        temp_list.append(agents.u_action[0])
+            max_q_joint = get_max_q_joint(agent.id, task, next_state, temp_list)
             n = 0
             for each_child_seq in child_seq:
-                each_child_seq.append(sub_task.name)
+                each_child_seq.append(sub_task)
                 joint_s_a = each_child_seq
                 joint_s_a.insert(0, agent.id)
                 n += 1
@@ -244,7 +265,7 @@ def do_extra(agent, task, state, seq):
             child_seq, next_state = c_hrl(agent, sub_task, state)
             if next_state is None:
                 next_state = state
-            max_q = get_max_q(next_state)
+            max_q = get_max_q(agent.id, task, next_state)
             n = 0
             for child_seqs in child_seq:
                 s = child_seqs[0]
@@ -346,10 +367,30 @@ def c_work(agent, task):
         step += 1
         print(task.name, agent.state)
         while not terminal(task, agent.state):
-            sub_task = random.choice(task.get_children())
-            sub_task.parent = task
-            c_work(agent, sub_task)
+            if task.type == 'c-sub-task':
+                print("if begin")
+                sub_task = random.choice(task.get_children())
+                sub_task.parent = task
+                c_work(agent, sub_task)
+            else:
+                sub_task = random.choice(task.get_children())
+                # sub_task = choose_task(task, agent.id, agent.state)
+                sub_task.parent = task
+                c_work(agent, sub_task)
 
+
+def choose_task(task, agent_id, state):
+    sub_tasks = task.get_children()
+    q_value = [task.dict.get((agent_id, state, sub_task), 0) for sub_task in sub_tasks]
+    max_q = max(q_value)
+    max_q_count = q_value.count(max_q)
+    if max_q_count == 1:
+        i_index = q_value.index(max_q)
+    else:
+        i_index_list = [i for i in range(len(sub_tasks)) if q_value[i] == max_q]
+        i_index = random.choice(i_index_list)
+    best_sub_task = sub_tasks[i_index]
+    return best_sub_task
 
 # 【！未完成】将探索概率降为0，验证探索多次之后的学习效果
 try:
