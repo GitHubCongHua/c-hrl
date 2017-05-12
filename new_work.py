@@ -39,8 +39,8 @@ M2 = Node('sub-task', 'collect trash at t2', 0, '')
 M3 = Node('sub-task', 'navigate to t1', 0, t1_end)
 M4 = Node('sub-task', 'navigate to t2', 0, t2_end)
 M5 = Node('sub-task', 'navigate to dump', 0, dump_end)
-P1 = Node('action_p', 'pick', '', '')
-P2 = Node('action_p', 'put', '', '')
+P1 = Node('action', 'pick', '', '')
+P2 = Node('action', 'put', '', '')
 C1 = Node('action', (-1, 0), '', '')
 C2 = Node('action', (1, 0), '', '')
 C3 = Node('action', (0, -1), '', '')
@@ -210,7 +210,6 @@ def get_depth(a_list):
 
 
 def do_extra(agent, task, state, seq):
-    next_state = None
     while not terminal(task, state):
         # print(terminal(task, state), state, task.name, 'agent', agent.id)
 
@@ -221,9 +220,6 @@ def do_extra(agent, task, state, seq):
             else:
                 agent.u_action[0] = sub_task.name
             child_seq, next_state = c_hrl(agent, sub_task, state)
-            # print(sub_task.name, child_seq, next_state)
-            if next_state is None:
-                next_state = state
             max_q_joint = get_max_q_joint(next_state)
             n = 0
             for each_child_seq in child_seq:
@@ -259,32 +255,23 @@ def do_extra(agent, task, state, seq):
                 else:
                     task.dict[(agent.id, s, sub_task)] = round((1 - alpha) * old_reward + alpha * (gamma ** n) * max_q, 5)
 
-        # if get_depth(child_seq) == 1:
-        #     seq.append(child_seq)
-        # elif get_depth(child_seq) == 2:
-        #     seq += child_seq
-        # else:
-        #     pass
         seq += child_seq
         # print('child', seq, get_thread_name())
-        # print("seq",  seq)
         state = next_state
-    return seq, next_state
+    return seq, state
 
 
 def c_hrl(agent, task, state):
     seq = []
     global step
-    if task.type == 'action':
-        step += 1
+    if task.name == (0, -1) or task.name == (0, 1) or task.name == (1, 0) or task.name == (-1, 0):
         return do_action(agent, task, state, seq)
     elif task.name == 'pick':
-        step += 1
         return do_pick(agent, task, state, seq)
     elif task.name == 'put':
-        step += 1
         return do_put(agent, task, state, seq)
     else:
+        step += 1
         return do_extra(agent, task, state, seq)
 
 
@@ -303,79 +290,79 @@ while count < 1:
     except ():
         print("Error: unable to start thread")
 
-    # print(M0.dict)
-    # print(M1.dict)
-    # print(M2.dict)
-    # print(M3.dict)
-    # print(M4.dict)
-    # print(M5.dict)
-    # print(P1.dict)
-    # print(P2.dict)
-    # print(C1.dict)
-    # print(C2.dict)
-    # print(C3.dict)
-    # print(C4.dict)
+    print(M0.dict)
+    print(M1.dict)
+    print(M2.dict)
+    print(M3.dict)
+    print(M4.dict)
+    print(M5.dict)
+    print(P1.dict)
+    print(P2.dict)
+    print(C1.dict)
+    print(C2.dict)
+    print(C3.dict)
+    print(C4.dict)
     count += 1
     print('第', count, '次探索')
     print('所用步数：', step)
+    print(dump_trash)
 
 
-# def c_work(agent, task):
-#     if task.name == (0, -1) or task.name == (0, 1) or task.name == (1, 0) or task.name == (-1, 0):
-#         next_state = vector_add(agent.state, task.name)
-#         if (next_state[0] not in range(8)) or (next_state[1] not in range(8)) \
-#                 or (Grid[next_state[0]][next_state[1]] != 0):
-#             next_state = agent.state
-#         else:
-#             next_state = vector_add(agent.state, task.name)
-#         agent.state = next_state
-#     elif task.name == 'pick':
-#         if task.parent.name == "collect trash at t1":
-#             if agent.state == t1_end and trash[0] == 1 and agent.trash == 0:
-#                 # 垃圾桶1里面的垃圾清空,agent拿起垃圾桶1里面的垃圾
-#                 trash[0] = 0
-#                 agent.trash = 1
-#                 print('agent', agent.id, 'pick the trash in t1')
-#         else:
-#             if agent.state == t2_end and trash[1] == 1 and agent.trash == 0:
-#                 # 垃圾桶2里面的垃圾清空,agent拿起垃圾桶2里面的垃圾
-#                 trash[1] = 0
-#                 agent.trash = 2
-#                 print('agent', agent.id, 'pick the trash in t2')
-#     elif task.name == 'put':
-#         if task.parent.name == "collect trash at t1":
-#             if agent.state == dump_end and agent.trash == 1:
-#                 dump_trash[0] = 1
-#                 agent.trash = 0
-#                 print('agent', agent.id, 'put the trash in t1 into dump')
-#         else:
-#             if agent.state == dump_end and agent.trash == 2:
-#                 dump_trash[1] = 1
-#                 agent.trash = 0
-#                 print('agent', agent.id, 'put the trash in t2 into dump')
-#     else:
-#         state = agent.state
-#         print(agent.state)
-#         while not terminal(task, state):
-#             sub_task = random.choice(task.get_children())
-#             print(sub_task.name, agent.state)
-#             sub_task.parent = task
-#
-#             c_work(agent, sub_task)
-#
-#
-# # 【！未完成】将探索概率降为0，验证探索多次之后的学习效果
-# try:
-#     trash = [1, 1]
-#     dump_trash = [0, 0]
-#     step = 0
-#     t1 = threading.Thread(target=c_work, args=(a1, M0))
-#     t2 = threading.Thread(target=c_work, args=(a2, M0))
-#     t1.start()
-#     t2.start()
-#     t1.join()
-#     t2.join()
-#     print('完成垃圾回收', dump_trash)
-#     print('所用步数：', step)
-# except ():
-#     print("Error: unable to start thread")
+def c_work(agent, task):
+    global step
+    if task.name == (0, -1) or task.name == (0, 1) or task.name == (1, 0) or task.name == (-1, 0):
+        next_state = vector_add(agent.state, task.name)
+        if (next_state[0] not in range(8)) or (next_state[1] not in range(8)) \
+                or (Grid[next_state[0]][next_state[1]] != 0):
+            next_state = agent.state
+        else:
+            next_state = vector_add(agent.state, task.name)
+        agent.state = next_state
+    elif task.name == 'pick':
+        if task.parent.name == "collect trash at t1":
+            if agent.state == t1_end and trash[0] == 1 and agent.trash == 0:
+                # 垃圾桶1里面的垃圾清空,agent拿起垃圾桶1里面的垃圾
+                trash[0] = 0
+                agent.trash = 1
+                print('agent', agent.id, 'pick the trash in t1')
+        else:
+            if agent.state == t2_end and trash[1] == 1 and agent.trash == 0:
+                # 垃圾桶2里面的垃圾清空,agent拿起垃圾桶2里面的垃圾
+                trash[1] = 0
+                agent.trash = 2
+                print('agent', agent.id, 'pick the trash in t2')
+    elif task.name == 'put':
+        if task.parent.name == "collect trash at t1":
+            if agent.state == dump_end and agent.trash == 1:
+                dump_trash[0] = 1
+                agent.trash = 0
+                print('agent', agent.id, 'put the trash in t1 into dump')
+        else:
+            if agent.state == dump_end and agent.trash == 2:
+                dump_trash[1] = 1
+                agent.trash = 0
+                print('agent', agent.id, 'put the trash in t2 into dump')
+    else:
+        step += 1
+        print(task.name, agent.state)
+        while not terminal(task, agent.state):
+            sub_task = random.choice(task.get_children())
+            sub_task.parent = task
+            c_work(agent, sub_task)
+
+
+# 【！未完成】将探索概率降为0，验证探索多次之后的学习效果
+try:
+    trash = [1, 1]
+    dump_trash = [0, 0]
+    step = 0
+    t1 = threading.Thread(target=c_work, args=(a1, M0))
+    t2 = threading.Thread(target=c_work, args=(a2, M0))
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+    print('完成垃圾回收', dump_trash)
+    print('所用步数：', step)
+except ():
+    print("Error: unable to start thread")
