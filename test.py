@@ -1,9 +1,14 @@
-child_seq = []
-for child_seqs in child_seq:
-    if type(child_seqs) == list:
-        s = child_seqs[0]
-        print("aha")
+def c_hrl(m):
+    seq = []
+    if m == 1:
+        seq.append([m])
     else:
-        s = child_seqs
-        print("njknjknj")
-    print(s)
+        while m != 1:
+            m -= 1
+            child_seq = c_hrl(m)
+            print(child_seq)
+            seq += child_seq
+    return seq
+
+seq = c_hrl(5)
+print(seq)
