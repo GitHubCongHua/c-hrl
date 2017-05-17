@@ -95,24 +95,42 @@ def vector_add(a, b):
     return a[0] + b[0], a[1] + b[1]
 
 
+# 这里还缺少联合的q值的那个，就是加了别的智能体的行为，缺少判断和处理！！！？？？
+# 但是用到学习中够了，在c_hrl中可以了；c_work中要用的话，还需要添加
+def get_q_value(agent_id, task, state, sub_task):
+    if sub_task.type == 'action':
+        c_value = task.dict.get((agent_id, state, sub_task), 0)
+        v_value = sub_task.dict.get((agent_id, state, sub_task), 0)
+        return c_value + v_value
+    else:
+        c_value = task.dict.get((agent_id, state, sub_task), 0)
+        # 根据策略选择下一个子任务，但是这个子任务只根据最大值选择？还是随机？
+        sub_sub_task = random.choice(sub_task.get_children())
+        v_value = get_q_value(agent_id, sub_task, state, sub_sub_task)
+        return c_value + v_value
+
+
 def get_max_q(agent_id, task, state):
     sub_tasks = task.get_children()
-    max_q = max([(task.dict.get((agent_id, state, sub_task), 0)
-                  + sub_task.dict.get((agent_id, state, sub_task), 0)) for sub_task in sub_tasks])
+    # 调用了get_q_value函数
+    max_q = max([get_q_value(agent_id, task, state, sub_task) for sub_task in sub_tasks])
     return max_q
 
 
+# 两处都调用了get_q_value函数，但是选取子任务的策略：最大？？随机？？
 def get_max_q_joint(agent_id, task, state, other_action_list):
     sub_tasks = task.get_children()
     if len(other_action_list) == 0:
         max_q_joint = max([(task.dict.get((agent_id, state, sub_task), 0)
-                            + sub_task.dict.get((agent_id, state, sub_task), 0)) for sub_task in sub_tasks])
+                            + get_q_value(agent_id, sub_task, state, random.choice(sub_task.get_children())))
+                           for sub_task in sub_tasks])
     else:
         # 由于这里只有一个值，所以不用列表再拼接了
         # 如果换成多于两个agent，这里就必须要改
         other_action = other_action_list[0]
         max_q_joint = max([(task.dict.get((agent_id, state, other_action, sub_task), 0)
-                            + sub_task.dict.get((agent_id, state, other_action, sub_task), 0)) for sub_task in sub_tasks])
+                            + get_q_value(agent_id, sub_task, state, random.choice(sub_task.get_children())))
+                           for sub_task in sub_tasks])
     return max_q_joint
 
 
@@ -297,7 +315,7 @@ def c_hrl(agent, task, state):
 
 
 count = 0
-while count < 1:
+while count < 10:
     trash = [1, 1]
     dump_trash = [0, 0]
     step = 0
@@ -311,18 +329,18 @@ while count < 1:
     except ():
         print("Error: unable to start thread")
 
-    print(M0.dict)
-    print(M1.dict)
-    print(M2.dict)
-    print(M3.dict)
-    print(M4.dict)
-    print(M5.dict)
-    print(P1.dict)
-    print(P2.dict)
-    print(C1.dict)
-    print(C2.dict)
-    print(C3.dict)
-    print(C4.dict)
+    # print(M0.dict)
+    # print(M1.dict)
+    # print(M2.dict)
+    # print(M3.dict)
+    # print(M4.dict)
+    # print(M5.dict)
+    # print(P1.dict)
+    # print(P2.dict)
+    # print(C1.dict)
+    # print(C2.dict)
+    # print(C3.dict)
+    # print(C4.dict)
     count += 1
     print('第', count, '次探索')
     print('所用步数：', step)
@@ -368,8 +386,15 @@ def c_work(agent, task):
         print(task.name, agent.state)
         while not terminal(task, agent.state):
             if task.type == 'c-sub-task':
-                print("if begin")
-                sub_task = random.choice(task.get_children())
+                # 获得其他agent在合作层采取的行为
+                # 由于这里其他agent只有一个，直接
+                temp_list = []
+                for agents in agent_list:
+                    if agents != agent:
+                        if len(agents.u_action) != 0:
+                            temp_list.append(agents.u_action[0])
+                # sub_task = random.choice(task.get_children())
+                sub_task = choose_task_joint(task, agent.id, agent.state, temp_list)
                 sub_task.parent = task
                 c_work(agent, sub_task)
             else:
@@ -379,9 +404,36 @@ def c_work(agent, task):
                 c_work(agent, sub_task)
 
 
-def choose_task(task, agent_id, state):
+def choose_task_joint(task, agent_id, state, other_action_list):
+    print('choose_task_joint')
     sub_tasks = task.get_children()
-    q_value = [task.dict.get((agent_id, state, sub_task), 0) for sub_task in sub_tasks]
+    if len(other_action_list) == 0:
+        q_value = [(task.dict.get((agent_id, state, sub_task), 0)
+                    + get_q_value(agent_id, sub_task, state, random.choice(sub_task.get_children())))
+                   for sub_task in sub_tasks]
+    else:
+        # 由于这里只有一个值，所以不用列表再拼接了
+        # 如果换成多于两个agent，这里就必须要改
+        other_action = other_action_list[0]
+        q_value = [(task.dict.get((agent_id, state, other_action, sub_task), 0)
+                   + get_q_value(agent_id, sub_task, state, random.choice(sub_task.get_children())))
+                   for sub_task in sub_tasks]
+    # 求获得最大值q值的子节点，与下面函数choose_task一样，精简时可抽象出来
+    max_q = max(q_value)
+    max_q_count = q_value.count(max_q)
+    if max_q_count == 1:
+        i_index = q_value.index(max_q)
+    else:
+        i_index_list = [i for i in range(len(sub_tasks)) if q_value[i] == max_q]
+        i_index = random.choice(i_index_list)
+    best_sub_task = sub_tasks[i_index]
+    return best_sub_task
+
+
+def choose_task(task, agent_id, state):
+    print("choose_task")
+    sub_tasks = task.get_children()
+    q_value = [get_q_value(agent_id, task, state, sub_task) for sub_task in sub_tasks]
     max_q = max(q_value)
     max_q_count = q_value.count(max_q)
     if max_q_count == 1:
