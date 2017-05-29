@@ -12,21 +12,30 @@ from Agent import Agent
 '''
 
 # 初始化格子布局状态，-1代表墙不能走，0代表可以通行的格子
-Grid = [[0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, -1, -1, -1, -1, -1],
-        [0, 0, 0, -1, 0, 0, 0, 0],
-        [0, 0, 0, -1, 0, 0, 0, 0],
-        [0, 0, 0, -1, 0, -1, 0, 0],
+# Grid = [[0, 0, 0, 0, 0, 0, 0, 0],
+#         [0, 0, 0, -1, -1, -1, -1, -1],
+#         [0, 0, 0, -1, 0, 0, 0, 0],
+#         [0, 0, 0, -1, 0, 0, 0, 0],
+#         [0, 0, 0, -1, 0, -1, 0, 0],
+#         [0, 0, 0, 0, 0, -1, 0, 0],
+#         [-1, -1, 0, 0, 0, -1, 0, 0],
+#         [-1, -1, 0, 0, 0, -1, 0, 0]
+#         ]
+Grid = [[0, 0, -1, 0, 0, 0, 0, 0],
+        [0, 0, -1, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, -1, 0, 0],
-        [-1, -1, 0, 0, 0, -1, 0, 0],
-        [-1, -1, 0, 0, 0, -1, 0, 0]
+        [-1, -1, -1, 0, 0, -1, 0, 0],
+        [0, 0, -1, 0, 0, -1, 0, 0],
+        [0, 0, -1, 0, 0, -1, 0, 0],
+        [0, 0, -1, 0, 0, -1, 0, 0],
+        [0, 0, 0, 0, 0, -1, 0, 0]
         ]
-a1 = Agent(1, (6, 3), 0)
+a1 = Agent(1, (1, 3), 0)
 a2 = Agent(2, (7, 3), 0)
 agent_list = [a1, a2]
-t1_end = (0, 0)
-t2_end = (7, 7)
-dump_end = (0, 7)
+t2_end = (0, 0)
+t1_end = (4, 0)
+dump_end = (7, 7)
 gamma = 0.8
 alpha = 0.7
 epsilon = 0.9
@@ -158,13 +167,13 @@ def do_action(agent, task, state, seq):
     if (next_state[0] not in range(8)) or (next_state[1] not in range(8)) \
             or (Grid[next_state[0]][next_state[1]] != 0):
         next_state = state
-        reward = -10
+        reward = 0
     else:
         next_state = vector_add(state, task.name)
         if destination == next_state:
             reward = 100
         else:
-            reward = -1
+            reward = 0
 
     # 执行函数
     prim_action_after(task, agent, state, reward, seq)
@@ -179,18 +188,18 @@ def do_pick(agent, task, state, seq):
             trash[0] = 0
             agent.trash = 1
             print('agent', agent.id, 'pick the trash in t1')
-            reward = 200
+            reward = 100
         else:
-            reward = -10
+            reward = 0
     elif task.parent.name == "collect trash at t2":
         if state == t2_end and trash[1] == 1 and agent.trash == 0:
             # 垃圾桶2里面的垃圾清空,agent拿起垃圾桶2里面的垃圾
             trash[1] = 0
             agent.trash = 2
             print('agent', agent.id, 'pick the trash in t2')
-            reward = 200
+            reward = 100
         else:
-            reward = -10
+            reward = 0
     else:
         print('在pick这步出错了额')
 
@@ -204,20 +213,20 @@ def do_pick(agent, task, state, seq):
 def do_put(agent, task, state, seq):
     if task.parent.name == "collect trash at t1":
         if state == dump_end and agent.trash == 1:
-            reward = 200
+            reward = 100
             dump_trash[0] = 1
             agent.trash = 0
             print('agent', agent.id, 'put the trash in t1 into dump')
         else:
-            reward = -10
+            reward = 0
     elif task.parent.name == "collect trash at t2":
         if state == dump_end and agent.trash == 2:
-            reward = 200
+            reward = 100
             dump_trash[1] = 1
             agent.trash = 0
             print('agent', agent.id, 'put the trash in t2 into dump')
         else:
-            reward = -10
+            reward = 0
     else:
         print('在put这步出错了额')
     next_state = state
@@ -320,7 +329,7 @@ while count < 1:
     dump_trash = [0, 0]
     step = 0
     try:
-        t1 = threading.Thread(target=c_hrl, args=(a1, M0, (6, 3)), name="agent-1")
+        t1 = threading.Thread(target=c_hrl, args=(a1, M0, (1, 3)), name="agent-1")
         t2 = threading.Thread(target=c_hrl, args=(a2, M0, (7, 3)), name="agent-2")
         t1.start()
         t2.start()
@@ -357,6 +366,7 @@ def c_work(agent, task):
         else:
             next_state = vector_add(agent.state, task.name)
         agent.state = next_state
+        print(agent.state)
     elif task.name == 'pick':
         if task.parent.name == "collect trash at t1":
             if agent.state == t1_end and trash[0] == 1 and agent.trash == 0:
@@ -400,18 +410,24 @@ def c_work(agent, task):
             elif task.name == 'collect trash at t1':
                 print("njkkfjvf:collect trash at t1")
                 flag = 1
-                sub_task = choose_task_cong(agent, t1_end, flag)
+                # sub_task = choose_task_cong(agent, t1_end, flag)
+                sub_task = choose_task(task, agent.id, agent.state, agent.trash)
+                print(sub_task.name)
+                sub_task.parent = task
                 c_work(agent, sub_task)
             elif task.name == 'collect trash at t2':
                 print("ndfghjksdfghjjkkfjvf:collect trash at t2")
                 flag = 2
-                sub_task = choose_task_cong(agent, t2_end, flag)
+                # sub_task = choose_task_cong(agent, t2_end, flag)
+                sub_task = choose_task(task, agent.id, agent.state, agent.trash)
+                print(sub_task.name)
+                sub_task.parent = task
                 c_work(agent, sub_task)
             else:
                 # sub_task = random.choice(task.get_children())
                 # sub_task = choose_task(task, agent.id, agent.state, agent.trash)
                 # sub_task.parent = task
-                # print(sub_task.name)
+                # c_work(agent, sub_task)
                 agent.state = task.terminal
                 c_work(agent, task)
 
@@ -422,14 +438,13 @@ def choose_task_cong(agent, destination, flag):
     elif agent.state == dump_end and agent.trash == flag:
         return P2
     elif agent.state != dump_end and agent.trash == flag:
+        return M5
+    elif agent.state != destination and agent.trash == 0 and flag == 1:
+        return M3
+    elif agent.state != destination and agent.trash == 0 and flag == 2:
         return M4
     else:
-        if flag == 1:
-            return M3
-        elif flag == 2:
-            return M5
-        else:
-            print("choose_task_cong函数出错了")
+        print("choose_task_cong函数出错了")
 
 
 def choose_task_joint(task, agent_id, state, other_action_list, agent_trash):
@@ -472,6 +487,7 @@ def choose_task(task, agent_id, state, agent_trash):
         i_index_list = [i for i in range(len(sub_tasks)) if q_value[i] == max_q]
         i_index = random.choice(i_index_list)
     best_sub_task = sub_tasks[i_index]
+    print(best_sub_task.name)
     # print(best_sub_task.name)
     return best_sub_task
 
@@ -481,8 +497,8 @@ try:
     dump_trash = [0, 0]
     step = 0
     print(M3.name)
-    t1 = threading.Thread(target=c_work, args=(a1, M1))
-    t2 = threading.Thread(target=c_work, args=(a2, M2))
+    t1 = threading.Thread(target=c_work, args=(a1, M0))
+    t2 = threading.Thread(target=c_work, args=(a2, M0))
     t1.start()
     t2.start()
     t1.join()
