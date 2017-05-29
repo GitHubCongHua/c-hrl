@@ -315,7 +315,7 @@ def c_hrl(agent, task, state):
 
 
 count = 0
-while count < 10:
+while count < 1:
     trash = [1, 1]
     dump_trash = [0, 0]
     step = 0
@@ -398,21 +398,22 @@ def c_work(agent, task):
                 sub_task.parent = task
                 c_work(agent, sub_task)
             elif task.name == 'collect trash at t1':
-                print("njkkfjvf")
+                print("njkkfjvf:collect trash at t1")
                 flag = 1
                 sub_task = choose_task_cong(agent, t1_end, flag)
                 c_work(agent, sub_task)
             elif task.name == 'collect trash at t2':
-                print("ndfghjksdfghjjkkfjvf")
+                print("ndfghjksdfghjjkkfjvf:collect trash at t2")
                 flag = 2
                 sub_task = choose_task_cong(agent, t2_end, flag)
                 c_work(agent, sub_task)
             else:
                 # sub_task = random.choice(task.get_children())
-                sub_task = choose_task(task, agent.id, agent.state, agent.trash)
-                sub_task.parent = task
+                # sub_task = choose_task(task, agent.id, agent.state, agent.trash)
+                # sub_task.parent = task
                 # print(sub_task.name)
-                c_work(agent, sub_task)
+                agent.state = task.terminal
+                c_work(agent, task)
 
 
 def choose_task_cong(agent, destination, flag):
@@ -479,8 +480,9 @@ try:
     trash = [1, 1]
     dump_trash = [0, 0]
     step = 0
-    t1 = threading.Thread(target=c_work, args=(a1, M0))
-    t2 = threading.Thread(target=c_work, args=(a2, M0))
+    print(M3.name)
+    t1 = threading.Thread(target=c_work, args=(a1, M1))
+    t2 = threading.Thread(target=c_work, args=(a2, M2))
     t1.start()
     t2.start()
     t1.join()
