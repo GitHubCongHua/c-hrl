@@ -7,16 +7,25 @@ import random
 agent开始位置随机，目的地一定，这个例子中目的地是（0，0）左上角位置
 '''
 # 初始化格子布局状态，-1代表墙不能走，0代表可以通行的格子
-Grid = [[0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, -1, -1, -1, -1, -1],
-        [0, 0, 0, -1, 0, 0, 0, 0],
-        [0, 0, 0, -1, 0, 0, 0, 0],
-        [0, 0, 0, -1, 0, -1, 0, 0],
+# Grid = [[0, 0, 0, 0, 0, 0, 0, 0],
+#         [0, 0, 0, -1, -1, -1, -1, -1],
+#         [0, 0, 0, -1, 0, 0, 0, 0],
+#         [0, 0, 0, -1, 0, 0, 0, 0],
+#         [0, 0, 0, -1, 0, -1, 0, 0],
+#         [0, 0, 0, 0, 0, -1, 0, 0],
+#         [-1, -1, 0, 0, 0, -1, 0, 0],
+#         [-1, -1, 0, 0, 0, -1, 0, 0]
+#         ]
+Grid = [[0, 0, -1, 0, 0, 0, 0, 0],
+        [0, 0, -1, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, -1, 0, 0],
-        [-1, -1, 0, 0, 0, -1, 0, 0],
-        [-1, -1, 0, 0, 0, -1, 0, 0]
+        [-1, -1, -1, 0, 0, -1, 0, 0],
+        [0, 0, -1, 0, 0, -1, 0, 0],
+        [0, 0, -1, 0, 0, -1, 0, 0],
+        [0, 0, -1, 0, 0, -1, 0, 0],
+        [0, 0, 0, 0, 0, -1, 0, 0]
         ]
-destination = (0, 0)
+destination = (4, 0)
 gamma = 0.8
 alpha = 0.7
 epsilon = 0.9
@@ -107,7 +116,7 @@ def get_best_action(state):
 
 count = 0
 while count < 100:
-    start_position = choice_start()
+    start_position = (7, 7)
     num_step = 0
     if start_position != destination:
         state_position, num_steps = learning_q(start_position, num_step)
@@ -125,32 +134,32 @@ print(Q_dict)
 #         print Q_dict.values()[value]
 
 
-while True:
-
-    try:
-        x = input("请输入开始位置（表示位置的元组）(eg.输入3,4)：")
-        input_position = tuple(eval(x))
-        if type(input_position) is not tuple:
-            print("输入不规范，不是元组，请重新输入")
-            continue
-    except (NameError, SyntaxError, TypeError):
-        print("输入类型错误")
-        continue
-
-    if input_position == destination:
-        print("已经位于目的地")
-    elif (input_position[0] not in range(8) or input_position[1] not in range(8) or
-          Grid[input_position[0]][input_position[1]] == -1):
-        print("输入位置不合理，请重新输入")
-    else:
-        position = input_position
-        # 路径存起来，然后逆向输出路径
-        position_list = []
-        while position != destination:
-            the_action = get_best_action(position)
-            position = vector_add(position, the_action)
-            print(position)
-            position_list.append(position)
-        position_list.reverse()
-        print(position_list)
-        print("抵达目的地")
+# while True:
+#
+# try:
+#     x = input("请输入开始位置（表示位置的元组）(eg.输入3,4)：")
+#     input_position = tuple(eval(x))
+#     if type(input_position) is not tuple:
+#         print("输入不规范，不是元组，请重新输入")
+#         continue
+# except (NameError, SyntaxError, TypeError):
+#     print("输入类型错误")
+#     continue
+input_position = (7, 7)
+if input_position == destination:
+    print("已经位于目的地")
+elif (input_position[0] not in range(8) or input_position[1] not in range(8) or
+      Grid[input_position[0]][input_position[1]] == -1):
+    print("输入位置不合理，请重新输入")
+else:
+    position = input_position
+    # 路径存起来，然后逆向输出路径
+    position_list = []
+    while position != destination:
+        the_action = get_best_action(position)
+        position = vector_add(position, the_action)
+        print(position)
+        position_list.append(position)
+    position_list.reverse()
+    print(len(position_list))
+    print("抵达目的地")
