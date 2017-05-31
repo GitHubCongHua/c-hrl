@@ -27,8 +27,7 @@ def get_can_direction(state):
         temp.append(vector_add(state, directions[i]))
     can_direction = []
     for i in range(len(directions)):
-        if ((temp[i][0] in range(8)) and (temp[i][1] in range(8))
-            and (Grid[temp[i][0]][temp[i][1]] == 0)):
+        if (temp[i][0] in range(8)) and (temp[i][1] in range(8)) and (Grid[temp[i][0]][temp[i][1]] == 0):
             can_direction.append(directions[i])
     return can_direction
 
@@ -77,9 +76,9 @@ def learning_q(state, destination, task, step):
         task.dict[(state, action)] = round((1 - alpha) * old_reward + alpha * (reward + gamma * max_q), 5)
     # <<------------更新学习到的Q_dict部分----------->>
 
-    print(next_state, "这次导航子任务已迈出步数：", step)
+    # print(next_state, "这次导航子任务已迈出步数：", step)
     if next_state == destination:
-        print("到达子任务目标地点！", "  这次导航子任务累计步数：", step)
+        # print("到达子任务目标地点！", "  这次导航子任务累计步数：", step)
         return None, step
     else:
         return next_state, step
